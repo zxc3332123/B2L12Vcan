@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>時代華語語法測驗 (V得了/V不了)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* 自訂字體與選擇反白顏色 */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    ::selection {
+      background-color: #fbcfe8; /* pink-200 */
+    }
+    .fade-in {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased min-h-screen flex flex-col">
+
+  <div id="app" class="w-full flex-grow flex items-center justify-center">
+    
+    <!-- 1. 首頁 (Menu Screen) -->
+    <div id="menu-screen" class="hidden min-h-screen w-full bg-gradient-to-br from-blue-50 via-pink-50 to-yellow-50 flex items-center justify-center p-4">
+      <div class="bg-white/80 backdrop-blur-sm p-10 rounded-[3rem] shadow-2xl max-w-lg w-full text-center border-4 border-white">
+        <div class="text-6xl mb-6 flex justify-center space-x-4">
+          <span class="animate-bounce">🌸</span>
+          <span class="animate-bounce" style="animation-delay: 100ms;">📖</span>
+          <span class="animate-bounce" style="animation-delay: 200ms;">✨</span>
+        </div>
+        <h1 class="text-3xl font-bold text-pink-500 mb-2">時代華語二</h1>
+        <h2 class="text-xl font-semibold text-gray-600 mb-8">可能補語語法測驗 (V得了/V不了)</h2>
+        
+        <div class="bg-pink-50 p-4 rounded-2xl mb-8 text-left text-sm text-gray-700 shadow-inner">
+          <p class="font-bold mb-2">🎈 遊戲規則：</p>
+          <ul class="list-disc pl-5 space-y-1">
+            <li>滿分 100 分，共 20 題。</li>
+            <li>你有 5 顆愛心 ❤️，答錯一題扣一顆。</li>
+            <li>「配合題」與「短文填空」會在同一畫面作答，並依答錯總數一次扣除愛心。</li>
+            <li>愛心扣光則遊戲結束，必須重新開始喔！</li>
+          </ul>
+        </div>
+
+        <button onclick="startGame()" class="w-full bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-4 px-8 rounded-full shadow-lg transform transition hover:scale-105 active:scale-95 text-xl flex items-center justify-center space-x-2">
+          <span>開始測驗</span>
+          <i data-lucide="arrow-right" class="w-6 h-6"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. 遊玩畫面 (Playing Screen) -->
+    <div id="playing-screen" class="hidden min-h-screen w-full bg-[#f8fcfb] flex-col items-center py-6 px-4 sm:px-6">
+      
+      <!-- 頂部資訊列 -->
+      <div class="w-full max-w-3xl flex justify-between items-center mb-6">
+        <div id="hearts-container" class="bg-white py-2 px-4 rounded-full shadow-sm flex items-center space-x-1 border border-pink-100 flex-wrap">
+          <!-- 愛心由 JS 產生 -->
+        </div>
+        
+        <div class="flex items-center space-x-4">
+          <div class="bg-white py-2 px-4 rounded-full shadow-sm flex items-center space-x-2 border border-yellow-100">
+            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-yellow-400"></i>
+            <span id="score-display" class="font-bold text-gray-600">0 分</span>
+          </div>
+          
+          <button onclick="toggleDevMode()" id="dev-btn" class="p-2 rounded-full transition shadow-sm bg-white text-gray-400 border border-gray-100 hover:text-indigo-400" title="開發者模式">
+            <i data-lucide="tool" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 開發者工具列 -->
+      <div id="dev-toolbar" class="hidden w-full max-w-3xl bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-6 justify-between items-center shadow-sm">
+        <span class="text-indigo-700 font-bold text-sm flex items-center"><i data-lucide="wrench" class="w-4 h-4 mr-1"></i> 開發者控制台</span>
+        <div class="flex items-center space-x-2">
+          <label for="dev-q-select" class="text-sm text-indigo-600 font-medium">跳至</label>
+          <select id="dev-q-select" onchange="jumpToQuestion(this.value)" class="bg-white border border-indigo-200 text-indigo-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-1.5 outline-none cursor-pointer max-w-[150px]">
+          </select>
+        </div>
+      </div>
+
+      <!-- 題目卡片 -->
+      <div class="w-full max-w-3xl bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col">
+        <!-- 標題與進度條 -->
+        <div class="bg-gradient-to-r from-blue-50 to-pink-50 p-6 border-b border-gray-100">
+          <div class="flex justify-between items-end mb-2">
+            <h2 id="q-part" class="text-xl font-extrabold text-gray-700"></h2>
+            <span id="q-progress" class="text-sm font-bold text-pink-400 bg-white px-3 py-1 rounded-full shadow-sm whitespace-nowrap ml-4"></span>
+          </div>
+          <p id="q-instruction" class="text-sm text-gray-500"></p>
+        </div>
+
+        <div class="p-6 sm:p-8 flex-1">
+          <!-- 上下文 (針對短文題) -->
+          <div id="q-context" class="hidden bg-gray-50 p-4 rounded-2xl mb-6 text-gray-700 leading-relaxed text-sm sm:text-base border border-gray-200 whitespace-pre-wrap"></div>
+
+          <!-- 題目內文 -->
+          <div id="q-text" class="hidden text-lg sm:text-xl font-medium text-gray-800 mb-8 whitespace-pre-wrap leading-relaxed"></div>
+
+          <!-- 互動選項區塊 (由 JS 產生) -->
+          <div id="interactive-area"></div>
+          
+          <!-- 開發者模式提示 -->
+          <div id="dev-hint" class="hidden mt-6 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600 text-sm font-mono break-all whitespace-pre-wrap"></div>
+        </div>
+
+        <!-- 底部操作區 -->
+        <div id="bottom-action-area" class="bg-gray-50 p-6 border-t border-gray-100">
+          <button id="submit-btn" onclick="submitAnswer()" class="w-full bg-gray-800 hover:bg-gray-900 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl shadow-md transition">
+            確定答案
+          </button>
+          
+          <div id="feedback-area" class="hidden space-y-4 fade-in">
+            <div id="feedback-box" class="p-4 rounded-2xl flex items-start space-x-3">
+              <!-- 圖示與結果由 JS 產生 -->
+            </div>
+            <button onclick="nextQuestion()" id="next-btn" class="w-full font-bold py-4 rounded-2xl shadow-md transition flex items-center justify-center space-x-2">
+              <span id="next-btn-text">下一題</span>
+              <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 遊戲結束畫面 (Game Over Screen) -->
+    <div id="gameover-screen" class="hidden min-h-screen w-full bg-gradient-to-br from-gray-100 to-red-50 flex items-center justify-center p-4">
+      <div class="bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center border-4 border-red-100">
+        <i data-lucide="heart-crack" class="w-24 h-24 text-red-400 mx-auto mb-6 animate-bounce"></i>
+        <h1 class="text-3xl font-bold text-red-500 mb-4">💔 心心扣光了！</h1>
+        <p class="text-gray-600 mb-8">別氣餒，再試一次一定會更好！</p>
+        <button onclick="startGame()" class="w-full bg-red-400 hover:bg-red-500 text-white font-bold py-4 px-8 rounded-full shadow-lg transform transition hover:scale-105 flex items-center justify-center space-x-2">
+          <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+          <span>重新開始</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. 結算畫面 (Result Screen) -->
+    <div id="result-screen" class="hidden min-h-screen w-full bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
+      <div class="bg-white p-8 md:p-10 rounded-[3rem] shadow-2xl max-w-2xl w-full text-center border-4 border-white">
+        <div class="text-6xl mb-4">🎉</div>
+        <h1 class="text-3xl font-bold text-blue-500 mb-2">測驗結束！</h1>
+        
+        <div class="my-8 bg-blue-50 rounded-3xl p-6 border-2 border-blue-100 relative overflow-hidden">
+          <div class="text-gray-500 text-lg mb-2">你的最終分數</div>
+          <div id="final-score" class="text-6xl font-black text-blue-600">0</div>
+          <div id="dev-mode-warning" class="hidden mt-4 text-sm text-red-500 bg-red-50 p-2 rounded-xl border border-red-200">
+            ⚠️ 系統偵測到您使用了開發者模式，本次測驗不予計分。
+          </div>
+        </div>
+
+        <div id="wrong-answers-area" class="mb-8 text-left hidden">
+          <h3 class="font-bold text-lg mb-4 text-gray-700 flex items-center">
+            <i data-lucide="search" class="w-5 h-5 mr-2 text-pink-500"></i>
+            錯題回顧 (點擊查看)
+          </h3>
+          <div id="wrong-buttons-container" class="flex flex-wrap gap-2">
+            <!-- 錯題按鈕由 JS 產生 -->
+          </div>
+        </div>
+
+        <div id="perfect-score-msg" class="hidden mb-8 text-green-500 font-bold text-lg">
+          太厲害了！你全答對了！🌟
+        </div>
+
+        <button onclick="goToMenu()" class="w-full bg-blue-400 hover:bg-blue-500 text-white font-bold py-4 px-8 rounded-full shadow-lg transform transition hover:scale-105 flex items-center justify-center space-x-2">
+          <i data-lucide="home" class="w-5 h-5"></i>
+          <span>回首頁</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 5. 錯題回顧畫面 (Review Screen) -->
+    <div id="review-screen" class="hidden min-h-screen w-full bg-gray-50 flex items-center justify-center p-4">
+      <div class="bg-white p-8 rounded-[2rem] shadow-xl max-w-2xl w-full border-2 border-gray-200">
+        <div class="flex justify-between items-center mb-6">
+          <h2 id="review-title" class="text-xl font-bold text-gray-700">🔍 錯題回顧</h2>
+          <span id="review-part" class="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-sm font-semibold"></span>
+        </div>
+
+        <div class="mb-6">
+          <div id="review-context" class="hidden bg-blue-50 p-4 rounded-xl mb-4 text-sm text-gray-700 leading-relaxed border border-blue-100 whitespace-pre-wrap"></div>
+          <p id="review-question" class="text-lg whitespace-pre-wrap font-medium"></p>
+        </div>
+
+        <div class="space-y-4 mb-8">
+          <div class="bg-red-50 p-4 rounded-2xl border border-red-100">
+            <p class="text-sm text-red-500 font-bold mb-1">❌ 你的答案：</p>
+            <p id="review-user-ans" class="text-gray-800"></p>
+          </div>
+          <div class="bg-green-50 p-4 rounded-2xl border border-green-100">
+            <p class="text-sm text-green-600 font-bold mb-1">✅ 正確答案：</p>
+            <p id="review-correct-ans" class="text-gray-800"></p>
+          </div>
+        </div>
+
+        <button onclick="goToResult()" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-6 rounded-full shadow-md transition flex items-center justify-center space-x-2">
+          <i data-lucide="arrow-right" class="w-5 h-5 rotate-180"></i>
+          <span>回到結算畫面</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- 測驗資料 (重新整理，整合群組題型) ---
+    const quizData = [
+      // 第一部分：選擇題 (5題)
+      { id: 1, part: "一、 選擇題", type: "mcq", instruction: "請根據上下文，選出一個最適合填入空格中的答案。", question: "A：你買了這麼多份炸雞排，你一個人 ________ 嗎？\nB：當然沒問題，我現在餓極了！", options: ["(A) 吃不了", "(B) 吃得了", "(C) 吃不到", "(D) 沒吃好"], answer: "(B) 吃得了" },
+      { id: 2, part: "一、 選擇題", type: "mcq", instruction: "請根據上下文，選出一個最適合填入空格中的答案。", question: "A：我的行李重得不得了，我一個人真的 ________。\nB：沒關係，我來幫你搬進房間裡吧。", options: ["(A) 拿不了", "(B) 拿得了", "(C) 沒拿了", "(D) 不拿了"], answer: "(A) 拿不了" },
+      { id: 3, part: "一、 選擇題", type: "mcq", instruction: "請根據上下文，選出一個最適合填入空格中的答案。", question: "A：可欣昨天吃了不乾淨的小吃，一直拉肚子，今天的舞會她應該 ________ 了。\nB：真可惜，那我們改天再去她的公寓看她吧。", options: ["(A) 沒去了", "(B) 去得了", "(C) 去不了", "(D) 去不到"], answer: "(C) 去不了" },
+      { id: 4, part: "一、 選擇題", type: "mcq", instruction: "請根據上下文，選出一個最適合填入空格中的答案。", question: "這棟公寓那麼大，一個月沒打掃了，房東一個人一天一定 ________ 那麼多打掃的工作。", options: ["(A) 做得完", "(B) 沒做完", "(C) 做得了", "(D) 做不了"], answer: "(D) 做不了" },
+      { id: 5, part: "一、 選擇題", type: "mcq", instruction: "請根據上下文，選出一個最適合填入空格中的答案。", question: "這次期末考要考的生字和語法太多了，我一個晚上 ________，看來得開夜車了。", options: ["(A) 記不了", "(B) 記得了", "(C) 不記得", "(D) 沒記得"], answer: "(A) 記不了" },
+
+      // 第二部分：語法重組 (5題)
+      { id: 6, part: "二、 語法重組", type: "rearrange", instruction: "請點擊下方詞彙重新排列，組合成一句語法正確、意思通順的句子。", question: "1.", options: ["(1) 買不了。", "(2) 那個有名的照相機", "(3) 貴得不得了，", "(4) 我"], answer: ["(2) 那個有名的照相機 (3) 貴得不得了， (4) 我 (1) 買不了。"] },
+      { id: 7, part: "二、 語法重組", type: "rearrange", instruction: "請點擊下方詞彙重新排列，組合成一句語法正確、意思通順的句子。", question: "2.", options: ["(1) 睡不了覺。", "(2) 電視的聲音", "(3) 吵得", "(4) 弟弟", "(5) 太大，"], answer: ["(2) 電視的聲音 (5) 太大， (3) 吵得 (4) 弟弟 (1) 睡不了覺。"] },
+      { id: 8, part: "二、 語法重組", type: "rearrange", instruction: "請點擊下方詞彙重新排列，組合成一句語法正確、意思通順的句子。", question: "3.", options: ["(1) 這麼多", "(2) 喝不了", "(3) 我們只有", "(4) 啤酒。", "(5) 兩個人，"], answer: ["(3) 我們只有 (5) 兩個人， (2) 喝不了 (1) 這麼多 (4) 啤酒。"] },
+      { id: 9, part: "二、 語法重組", type: "rearrange", instruction: "請點擊下方詞彙重新排列，組合成一句語法正確、意思通順的句子。", question: "4.", options: ["(1) 受傷了，", "(2) 走不了路。", "(3) 哥哥的", "(4) 腿"], answer: ["(3) 哥哥的 (4) 腿 (1) 受傷了， (2) 走不了路。"] },
+      { id: 10, part: "二、 語法重組", type: "rearrange", instruction: "請點擊下方詞彙重新排列，組合成一句語法正確、意思通順的句子。", question: "5.", options: ["(1) 照顧病人", "(2) 做不了", "(3) 那麼辛苦", "(4) 的工作。", "(5) 我"], answer: ["(5) 我 (2) 做不了 (1) 照顧病人 (3) 那麼辛苦 (4) 的工作。", "(1) 照顧病人 (3) 那麼辛苦 (4) 的工作。 (5) 我 (2) 做不了"] },
+
+      // 第三部分：配合題 (群組題型 - 一次顯示)
+      {
+        id: 'group3', part: "三、 配合題", type: "matching",
+        instruction: "請根據左邊（1~5）的句子，從上方選項中選出最合理且包含「V得了/V不了」語法的後半段選項，點擊題目下方的英文字母作答。",
+        options: [
+          { key: 'A', text: "你一個人真的背得了嗎？" },
+          { key: 'B', text: "我們三個人怎麼吃得了？" },
+          { key: 'C', text: "聽說他的感冒越來越嚴重，明天的活動他一定去不了了。" },
+          { key: 'D', text: "十分鍾以內一定到不了。" },
+          { key: 'E', text: "像這樣需要愛心的服務工作，他一定做不了。" },
+          { key: 'F', text: "晚上睡覺的時候一定會吵得受不了。" }
+        ],
+        subQuestions: [
+          { id: 11, q: "1. 為了準備明天的口試，她生病了還一直開夜車，________", ansKey: 'C', ansText: "C. 聽說他的感冒越來越嚴重，明天的活動他一定去不了了。" },
+          { id: 12, q: "2. 這家夜市的小吃都很有名，我買了三十份臭豆腐，________", ansKey: 'B', ansText: "B. 我們三個人怎麼吃得了？" },
+          { id: 13, q: "3. 從學校走到高鐵站很遠，搭公車也要一個小時，________", ansKey: 'D', ansText: "D. 十分鍾以內一定到不了。" },
+          { id: 14, q: "4. 你的背包裡裝了那麼多本字典和課本，________", ansKey: 'A', ansText: "A. 你一個人真的背得了嗎？" },
+          { id: 15, q: "5. 去育幼院照顧沒有父母的孩子很辛苦，________", ansKey: 'E', ansText: "E. 像這樣需要愛心的服務工作，他一定做不了。" }
+        ]
+      },
+
+      // 第四部分：短文填空配合題 (群組題型 - 一次顯示)
+      {
+        id: 'group4', part: "四、 短文填空配合題", type: "cloze",
+        instruction: "請閱讀短文，並為每個空格從上方選項中選出最適合填入的答案。",
+        context: "這個週末是山本良介的生日，莫以凡打算幫他慶祝。他去夜市買了三十份炸雞排和五十杯珍珠奶茶。良介說：「只有我們幾個朋友，怎麼可能吃得完！這麼多食物我們一定 ( 1. ____ ) 啊！」\n\n本來陳可欣也要來參加，可是她昨天晚上為了準備期末考，一直開夜車，今天早上覺得頭痛死了。看來今天的慶祝活動，她一定 ( 2. ____ ) 了。\n\n莫以凡想從學校把一台卡拉OK機器帶回家，可是機器重得不得了，他一個人 ( 3. ____ )，只好請鄰居來幫忙。\n\n鄰居看到以凡家裡又髒又亂，就說：「這麼多打掃的工作，你今天一天一定 ( 4. ____ )，我來幫你吧！」\n\n打掃完以後，以凡給了鄰居十杯珍珠奶茶，鄰居笑著說：「太多了！我一個人 ( 5. ____ )，給我兩杯就好，謝謝你的招待。」",
+        options: [
+          { key: 'A', text: "吃不了" }, { key: 'B', text: "搬不了" }, { key: 'C', text: "忘不了" },
+          { key: 'D', text: "喝不了" }, { key: 'E', text: "去不了" }, { key: 'F', text: "做不了" }
+        ],
+        subQuestions: [
+          { id: 16, q: "空格 ( 1 ) 應填入：", ansKey: 'A', ansText: "A. 吃不了" },
+          { id: 17, q: "空格 ( 2 ) 應填入：", ansKey: 'E', ansText: "E. 去不了" },
+          { id: 18, q: "空格 ( 3 ) 應填入：", ansKey: 'B', ansText: "B. 搬不了" },
+          { id: 19, q: "空格 ( 4 ) 應填入：", ansKey: 'F', ansText: "F. 做不了" },
+          { id: 20, q: "空格 ( 5 ) 應填入：", ansKey: 'D', ansText: "D. 喝不了" }
+        ]
+      }
+    ];
+
+    // --- 狀態變數 ---
+    let gameState = 'menu'; // menu, playing, gameover, result, review
+    let currentQIdx = 0; // 對應 quizData 的索引 (代表 12 個階段)
+    let hearts = 5;
+    let score = 0;
+    let devMode = false;
+    let usedDevMode = false;
+    let historyData = [];
+    let reviewHistoryItem = null; // 用來記錄在 Review 畫面要顯示哪筆資料
+    
+    // 目前題目狀態
+    let selectedOption = null;
+    let selectedWords = [];
+    let availableWords = [];
+    let selectedGroupOptions = {}; // 紀錄群組題型的作答狀況 { subQIdx: 'A' }
+    
+    let isAnswerSubmitted = false;
+    let isCurrentCorrect = false;
+    let currentGroupWrongCount = 0;
+
+    // --- 核心控制函數 ---
+    function setGameState(state) {
+      gameState = state;
+      ['menu', 'playing', 'gameover', 'result', 'review'].forEach(id => {
+        document.getElementById(id + '-screen').classList.add('hidden');
+      });
+      document.getElementById(state + '-screen').classList.remove('hidden');
+      document.getElementById(state + '-screen').classList.add('flex');
+      
+      if (state === 'playing') renderPlaying();
+      if (state === 'result') renderResult();
+      if (state === 'review') renderReview();
+      
+      lucide.createIcons();
+    }
+
+    function startGame() {
+      currentQIdx = 0;
+      hearts = 5;
+      score = 0;
+      historyData = [];
+      resetCurrentState();
+      setGameState('playing');
+    }
+
+    function goToMenu() {
+      setGameState('menu');
+    }
+
+    function goToResult() {
+      setGameState('result');
+    }
+
+    function resetCurrentState() {
+      selectedOption = null;
+      selectedWords = [];
+      selectedGroupOptions = {};
+      isAnswerSubmitted = false;
+      isCurrentCorrect = false;
+      currentGroupWrongCount = 0;
+      if (quizData[currentQIdx] && quizData[currentQIdx].type === 'rearrange') {
+        availableWords = [...quizData[currentQIdx].options];
+      }
+    }
+
+    function toggleDevMode() {
+      devMode = !devMode;
+      if (devMode) usedDevMode = true;
+      
+      const devBtn = document.getElementById('dev-btn');
+      const devToolbar = document.getElementById('dev-toolbar');
+      
+      if (devMode) {
+        devBtn.classList.add('bg-indigo-100', 'text-indigo-600', 'border-indigo-200');
+        devBtn.classList.remove('bg-white', 'text-gray-400', 'border-gray-100', 'hover:text-indigo-400');
+        
+        // 產生下拉選單選項
+        const select = document.getElementById('dev-q-select');
+        select.innerHTML = ''; // 清空重新產生
+        quizData.forEach((q, idx) => {
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.text = `階段 ${idx + 1} (${q.part.split('、')[0]})`; // 例：階段 11 (三)
+          select.appendChild(opt);
+        });
+        select.value = currentQIdx;
+        
+        devToolbar.classList.remove('hidden');
+        devToolbar.classList.add('flex');
+      } else {
+        devBtn.classList.remove('bg-indigo-100', 'text-indigo-600', 'border-indigo-200');
+        devBtn.classList.add('bg-white', 'text-gray-400', 'border-gray-100', 'hover:text-indigo-400');
+        
+        devToolbar.classList.add('hidden');
+        devToolbar.classList.remove('flex');
+      }
+      renderPlaying();
+    }
+
+    function jumpToQuestion(idx) {
+      currentQIdx = parseInt(idx);
+      resetCurrentState();
+      renderPlaying();
+    }
+
+    // --- 遊戲畫面渲染與互動 ---
+    function renderPlaying() {
+      const q = quizData[currentQIdx];
+      
+      // 更新狀態列
+      renderHearts();
+      document.getElementById('score-display').innerText = score + ' 分';
+      
+      // 同步開發者工具列的選單
+      const select = document.getElementById('dev-q-select');
+      if (select && select.options.length > 0) {
+        select.value = currentQIdx;
+      }
+      
+      // 更新標題
+      document.getElementById('q-part').innerText = q.part;
+      document.getElementById('q-progress').innerText = `階段 ${currentQIdx + 1} / ${quizData.length}`;
+      document.getElementById('q-instruction').innerText = q.instruction;
+      
+      // 更新內文區塊
+      const contextEl = document.getElementById('q-context');
+      if (q.context) {
+        contextEl.innerText = q.context;
+        contextEl.classList.remove('hidden');
+      } else {
+        contextEl.classList.add('hidden');
+      }
+
+      const textEl = document.getElementById('q-text');
+      if (q.question) {
+        textEl.innerText = q.question;
+        textEl.classList.remove('hidden');
+      } else {
+        textEl.classList.add('hidden');
+      }
+      
+      // 渲染選項/重組/群組區塊
+      renderInteractiveArea();
+      
+      // 開發者提示
+      const devHint = document.getElementById('dev-hint');
+      if (devMode && !isAnswerSubmitted) {
+        if (q.type === 'matching' || q.type === 'cloze') {
+          devHint.innerText = `🛠️ [Dev] 正確答案：\n` + q.subQuestions.map(sq => `${sq.q} -> ${sq.ansKey}`).join('\n');
+        } else {
+          let ansTxt = Array.isArray(q.answer) ? q.answer[0] : q.answer;
+          devHint.innerText = `🛠️ [Dev] 正確答案：${ansTxt}`;
+        }
+        devHint.classList.remove('hidden');
+      } else {
+        devHint.classList.add('hidden');
+      }
+
+      // 底部按鈕區
+      const submitBtn = document.getElementById('submit-btn');
+      const feedbackArea = document.getElementById('feedback-area');
+      
+      if (!isAnswerSubmitted) {
+        submitBtn.classList.remove('hidden');
+        feedbackArea.classList.add('hidden');
+        
+        let canSubmit = false;
+        if (q.type === 'mcq' && selectedOption) canSubmit = true;
+        if (q.type === 'rearrange' && selectedWords.length > 0) canSubmit = true;
+        if ((q.type === 'matching' || q.type === 'cloze') && Object.keys(selectedGroupOptions).length === q.subQuestions.length) {
+          canSubmit = true;
+        }
+        
+        submitBtn.disabled = !canSubmit;
+      } else {
+        submitBtn.classList.add('hidden');
+        feedbackArea.classList.remove('hidden');
+        renderFeedback();
+      }
+      
+      lucide.createIcons();
+    }
+
+    function renderHearts() {
+      const container = document.getElementById('hearts-container');
+      container.innerHTML = '';
+      for (let i = 0; i < 5; i++) {
+        if (i < hearts) {
+          container.innerHTML += `<i data-lucide="heart" class="w-6 h-6 text-pink-500 fill-pink-500 animate-pulse"></i>`;
+        } else {
+          container.innerHTML += `<i data-lucide="heart-crack" class="w-6 h-6 text-gray-300"></i>`;
+        }
+      }
+    }
+
+    function renderInteractiveArea() {
+      const area = document.getElementById('interactive-area');
+      const q = quizData[currentQIdx];
+      area.innerHTML = '';
+
+      if (q.type === 'mcq') {
+        const wrap = document.createElement('div');
+        wrap.className = 'space-y-3';
+        
+        q.options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.innerText = opt;
+          
+          let baseClasses = 'w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 text-sm sm:text-base ';
+          
+          if (selectedOption === opt) {
+            baseClasses += 'border-pink-400 bg-pink-50 text-pink-700 shadow-md transform scale-[1.01] ';
+          } else {
+            baseClasses += 'border-gray-100 hover:border-pink-200 hover:bg-pink-50/50 text-gray-600 ';
+          }
+          
+          if (isAnswerSubmitted) {
+            baseClasses += 'cursor-not-allowed opacity-80 ';
+            btn.disabled = true;
+          }
+          
+          btn.className = baseClasses;
+          btn.onclick = () => handleOptionClick(opt);
+          wrap.appendChild(btn);
+        });
+        area.appendChild(wrap);
+      } 
+      else if (q.type === 'rearrange') {
+        const wrap = document.createElement('div');
+        wrap.className = 'space-y-6';
+        
+        // 已選擇區域
+        const selectedWrap = document.createElement('div');
+        selectedWrap.className = 'min-h-[80px] p-4 bg-blue-50 rounded-2xl border-2 border-dashed border-blue-200 flex flex-wrap gap-2 items-start content-start';
+        
+        if (selectedWords.length === 0 && !isAnswerSubmitted) {
+          selectedWrap.innerHTML = '<span class="text-blue-300 text-sm w-full text-center mt-2">請點擊下方詞彙拼湊句子</span>';
+        }
+        
+        selectedWords.forEach(word => {
+          const btn = document.createElement('button');
+          btn.innerText = word;
+          btn.className = `bg-white text-blue-700 border-2 border-blue-200 shadow-sm px-4 py-2 rounded-full text-sm sm:text-base transition hover:-translate-y-1 ${isAnswerSubmitted ? 'cursor-not-allowed' : ''}`;
+          btn.disabled = isAnswerSubmitted;
+          btn.onclick = () => handleWordSelect(word, false);
+          selectedWrap.appendChild(btn);
+        });
+        
+        // 待選擇區域
+        const availableWrap = document.createElement('div');
+        availableWrap.className = 'p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-wrap gap-2 justify-center';
+        
+        availableWords.forEach(word => {
+          const btn = document.createElement('button');
+          btn.innerText = word;
+          btn.className = `bg-white text-gray-700 border-2 border-gray-200 shadow-sm px-4 py-2 rounded-full text-sm sm:text-base transition hover:border-pink-300 hover:text-pink-500 hover:-translate-y-1 ${isAnswerSubmitted ? 'cursor-not-allowed' : ''}`;
+          btn.disabled = isAnswerSubmitted;
+          btn.onclick = () => handleWordSelect(word, true);
+          availableWrap.appendChild(btn);
+        });
+        
+        wrap.appendChild(selectedWrap);
+        wrap.appendChild(availableWrap);
+        area.appendChild(wrap);
+      }
+      else if (q.type === 'matching' || q.type === 'cloze') {
+        const wrap = document.createElement('div');
+        wrap.className = 'space-y-6';
+
+        // 選項參考區塊
+        const optionsBox = document.createElement('div');
+        optionsBox.className = 'p-4 bg-yellow-50 rounded-2xl border border-yellow-200 shadow-sm';
+        optionsBox.innerHTML = '<h4 class="font-bold mb-3 text-yellow-800 flex items-center"><i data-lucide="list-checks" class="w-5 h-5 mr-1"></i> 備選選項：</h4>';
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm';
+        q.options.forEach(opt => {
+           grid.innerHTML += `<div class="text-gray-700 flex"><span class="font-bold mr-2 text-yellow-700">${opt.key}.</span><span>${opt.text}</span></div>`;
+        });
+        optionsBox.appendChild(grid);
+        wrap.appendChild(optionsBox);
+
+        // 子題目區塊
+        q.subQuestions.forEach((subQ, idx) => {
+           const sqBox = document.createElement('div');
+           let boxColorClass = 'border-gray-200 bg-white';
+           
+           if (isAnswerSubmitted) {
+               if (selectedGroupOptions[idx] === subQ.ansKey) boxColorClass = 'border-green-300 bg-green-50';
+               else boxColorClass = 'border-red-300 bg-red-50';
+           }
+           
+           sqBox.className = `p-5 rounded-2xl border shadow-sm transition ${boxColorClass}`;
+
+           const qText = document.createElement('p');
+           qText.className = 'font-medium mb-4 text-gray-800 text-lg';
+           qText.innerText = subQ.q;
+           sqBox.appendChild(qText);
+
+           const btnWrap = document.createElement('div');
+           btnWrap.className = 'flex flex-wrap gap-2 sm:gap-3';
+
+           q.options.forEach(opt => {
+              const btn = document.createElement('button');
+              const isSelected = selectedGroupOptions[idx] === opt.key;
+              btn.innerText = opt.key;
+              
+              let btnClass = 'w-10 h-10 sm:w-12 sm:h-12 rounded-xl font-bold transition flex items-center justify-center border-2 text-sm sm:text-base ';
+              
+              if (isSelected) {
+                 btnClass += 'bg-pink-500 text-white border-pink-500 shadow-md transform scale-110 ';
+              } else {
+                 btnClass += 'bg-white text-gray-500 border-gray-200 hover:border-pink-300 hover:text-pink-400 ';
+              }
+
+              if (isAnswerSubmitted) {
+                 btn.disabled = true;
+                 if (isSelected) btnClass += 'opacity-80 cursor-not-allowed ';
+                 else btnClass += 'opacity-40 cursor-not-allowed ';
+              } else {
+                 btn.onclick = () => {
+                    selectedGroupOptions[idx] = opt.key;
+                    renderPlaying();
+                 };
+              }
+              btn.className = btnClass;
+              btnWrap.appendChild(btn);
+           });
+           sqBox.appendChild(btnWrap);
+
+           // 提交後顯示各題對錯回饋
+           if (isAnswerSubmitted) {
+               const feed = document.createElement('div');
+               feed.className = 'mt-4 pt-3 border-t border-black/10 text-sm font-bold flex items-center';
+               if (selectedGroupOptions[idx] === subQ.ansKey) {
+                   feed.innerHTML = '<i data-lucide="check" class="w-4 h-4 mr-1 text-green-600"></i><span class="text-green-600">答對了</span>';
+               } else {
+                   feed.innerHTML = `<i data-lucide="x" class="w-4 h-4 mr-1 text-red-500"></i><span class="text-red-500">答錯了，正確為：${subQ.ansText}</span>`;
+               }
+               sqBox.appendChild(feed);
+           }
+
+           wrap.appendChild(sqBox);
+        });
+
+        area.appendChild(wrap);
+      }
+    }
+
+    function renderFeedback() {
+      const box = document.getElementById('feedback-box');
+      const q = quizData[currentQIdx];
+      box.innerHTML = '';
+
+      if (q.type === 'mcq' || q.type === 'rearrange') {
+        let ansTxt = Array.isArray(q.answer) ? q.answer[0] : q.answer;
+
+        if (isCurrentCorrect) {
+          box.className = 'p-4 rounded-2xl flex items-start space-x-3 bg-green-100 text-green-800';
+          box.innerHTML = `
+            <i data-lucide="check-circle-2" class="w-6 h-6 text-green-600 shrink-0 mt-0.5"></i>
+            <div><h3 class="font-bold text-lg mb-1">答對了！</h3></div>
+          `;
+          document.getElementById('next-btn').className = 'w-full font-bold py-4 rounded-2xl shadow-md transition flex items-center justify-center space-x-2 bg-green-500 hover:bg-green-600 text-white';
+        } else {
+          box.className = 'p-4 rounded-2xl flex items-start space-x-3 bg-red-100 text-red-800';
+          box.innerHTML = `
+            <i data-lucide="x-circle" class="w-6 h-6 text-red-600 shrink-0 mt-0.5"></i>
+            <div>
+              <h3 class="font-bold text-lg mb-1">答錯了！</h3>
+              <p class="text-sm opacity-90">正確答案是：<br/><span class="font-semibold block mt-1">${ansTxt}</span></p>
+            </div>
+          `;
+          document.getElementById('next-btn').className = 'w-full font-bold py-4 rounded-2xl shadow-md transition flex items-center justify-center space-x-2 bg-red-400 hover:bg-red-500 text-white';
+        }
+      } 
+      else if (q.type === 'matching' || q.type === 'cloze') {
+        if (currentGroupWrongCount === 0) {
+          box.className = 'p-4 rounded-2xl flex items-start space-x-3 bg-green-100 text-green-800';
+          box.innerHTML = `
+            <i data-lucide="check-circle-2" class="w-6 h-6 text-green-600 shrink-0 mt-0.5"></i>
+            <div><h3 class="font-bold text-lg mb-1">太棒了，本大題全對！</h3></div>
+          `;
+          document.getElementById('next-btn').className = 'w-full font-bold py-4 rounded-2xl shadow-md transition flex items-center justify-center space-x-2 bg-green-500 hover:bg-green-600 text-white';
+        } else {
+          box.className = 'p-4 rounded-2xl flex items-start space-x-3 bg-red-100 text-red-800';
+          box.innerHTML = `
+            <i data-lucide="x-circle" class="w-6 h-6 text-red-600 shrink-0 mt-0.5"></i>
+            <div>
+              <h3 class="font-bold text-lg mb-1">有 ${currentGroupWrongCount} 個空格答錯了！</h3>
+              <p class="text-sm opacity-90">已根據錯題數量扣除愛心，可在結算畫面重溫錯題。</p>
+            </div>
+          `;
+          document.getElementById('next-btn').className = 'w-full font-bold py-4 rounded-2xl shadow-md transition flex items-center justify-center space-x-2 bg-red-400 hover:bg-red-500 text-white';
+        }
+      }
+      
+      document.getElementById('next-btn-text').innerText = currentQIdx < quizData.length - 1 ? '下一題' : '查看成績';
+    }
+
+    // --- 互動事件處理 ---
+    function handleOptionClick(opt) {
+      if (isAnswerSubmitted) return;
+      selectedOption = opt;
+      renderPlaying();
+    }
+
+    function handleWordSelect(word, fromAvailable) {
+      if (isAnswerSubmitted) return;
+      if (fromAvailable) {
+        availableWords = availableWords.filter(w => w !== word);
+        selectedWords.push(word);
+      } else {
+        selectedWords = selectedWords.filter(w => w !== word);
+        availableWords.push(word);
+      }
+      renderPlaying();
+    }
+
+    function submitAnswer() {
+      if (isAnswerSubmitted) return;
+      const q = quizData[currentQIdx];
+
+      if (q.type === 'mcq' || q.type === 'rearrange') {
+        let isCorrect = false;
+        let userAnswerStr = "";
+
+        if (q.type === 'mcq') {
+          isCorrect = (selectedOption === q.answer);
+          userAnswerStr = selectedOption;
+        } else if (q.type === 'rearrange') {
+          userAnswerStr = selectedWords.join(' ');
+          isCorrect = q.answer.includes(userAnswerStr);
+        }
+
+        isCurrentCorrect = isCorrect;
+        
+        historyData.push({
+          displayNum: q.id,
+          part: q.part,
+          context: q.context,
+          questionText: q.question,
+          isCorrect: isCorrect,
+          userAnswer: userAnswerStr,
+          correctAnswer: Array.isArray(q.answer) ? q.answer[0] : q.answer
+        });
+
+        if (isCorrect) {
+          score += 5;
+        } else {
+          if (!devMode) {
+            hearts -= 1;
+            if (hearts <= 0) { hearts = 0; triggerGameOver(); return; }
+          }
+        }
+      } 
+      else if (q.type === 'matching' || q.type === 'cloze') {
+        let wrongCount = 0;
+        let correctCount = 0;
+        
+        q.subQuestions.forEach((subQ, idx) => {
+          const userKey = selectedGroupOptions[idx];
+          const isCorrect = (userKey === subQ.ansKey);
+          
+          if (isCorrect) correctCount++;
+          else wrongCount++;
+
+          let userText = userKey ? (q.options.find(o => o.key === userKey)?.text || '') : '';
+          let userAnswerStr = userKey ? `${userKey}. ${userText}` : '(未作答)';
+
+          historyData.push({
+            displayNum: subQ.id, // 用子題目的 id 作為第幾題
+            part: q.part,
+            context: q.context,
+            questionText: subQ.q,
+            isCorrect: isCorrect,
+            userAnswer: userAnswerStr,
+            correctAnswer: subQ.ansText
+          });
+        });
+
+        currentGroupWrongCount = wrongCount;
+        score += correctCount * 5; // 每小格 5 分
+        
+        if (!devMode && wrongCount > 0) {
+          hearts -= wrongCount;
+          if (hearts <= 0) { hearts = 0; triggerGameOver(); return; }
+        }
+      }
+
+      isAnswerSubmitted = true;
+      renderPlaying();
+    }
+
+    function triggerGameOver() {
+      isAnswerSubmitted = true;
+      renderPlaying(); // 先繪製心碎與結果
+      setTimeout(() => setGameState('gameover'), 2000);
+    }
+
+    function nextQuestion() {
+      if (currentQIdx < quizData.length - 1) {
+        currentQIdx++;
+        resetCurrentState();
+        renderPlaying();
+      } else {
+        setGameState('result');
+      }
+    }
+
+    // --- 結算與回顧畫面 ---
+    function renderResult() {
+      const finalScore = usedDevMode ? 0 : score;
+      const wrongAnswers = historyData.filter(h => !h.isCorrect);
+      
+      document.getElementById('final-score').innerText = finalScore;
+      
+      if (usedDevMode) {
+        document.getElementById('final-score').classList.replace('text-blue-600', 'text-gray-400');
+        document.getElementById('dev-mode-warning').classList.remove('hidden');
+      } else {
+        document.getElementById('final-score').classList.replace('text-gray-400', 'text-blue-600');
+        document.getElementById('dev-mode-warning').classList.add('hidden');
+      }
+
+      const wrongArea = document.getElementById('wrong-answers-area');
+      const perfectMsg = document.getElementById('perfect-score-msg');
+      const btnContainer = document.getElementById('wrong-buttons-container');
+      
+      if (wrongAnswers.length > 0) {
+        wrongArea.classList.remove('hidden');
+        perfectMsg.classList.add('hidden');
+        btnContainer.innerHTML = '';
+        
+        // 按照題號排序以確保整齊
+        wrongAnswers.sort((a, b) => a.displayNum - b.displayNum).forEach(item => {
+          const btn = document.createElement('button');
+          btn.innerText = `第 ${item.displayNum} 題`;
+          btn.className = 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-2 px-4 rounded-xl text-sm font-medium transition shadow-sm';
+          btn.onclick = () => {
+            reviewHistoryItem = item;
+            setGameState('review');
+          };
+          btnContainer.appendChild(btn);
+        });
+      } else {
+        wrongArea.classList.add('hidden');
+        perfectMsg.classList.remove('hidden');
+      }
+    }
+
+    function renderReview() {
+      const log = reviewHistoryItem;
+      if (!log) return;
+
+      document.getElementById('review-title').innerText = `🔍 錯題回顧 - 第 ${log.displayNum} 題`;
+      document.getElementById('review-part').innerText = log.part;
+      
+      const ctx = document.getElementById('review-context');
+      if (log.context) {
+        ctx.innerText = log.context;
+        ctx.classList.remove('hidden');
+      } else {
+        ctx.classList.add('hidden');
+      }
+      
+      document.getElementById('review-question').innerText = log.questionText;
+      document.getElementById('review-user-ans').innerText = log.userAnswer || "(未作答)";
+      document.getElementById('review-correct-ans').innerText = log.correctAnswer;
+    }
+
+    // 初始化啟動
+    setGameState('menu');
+  </script>
+</body>
+</html>
